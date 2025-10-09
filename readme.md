@@ -194,7 +194,17 @@ The report (default: `export.xlsx`) contains one row per URL with:
 **A:** Yes, inspected URLs must belong to a verified domain.
 
 **Q:** How many URLs can I inspect?  
-**A:** As many as your quota allows. Run in chunks (5–10k/day) if large.
+**A:** The URL Inspection API has specific usage limits:
+
+- **Per-site quota** (calls querying the same site):  
+  - `2,000` **queries per day (QPD)**  
+  - `600` **queries per minute (QPM)**  
+
+- **Per-project quota** (calls made using the same Google Cloud project / API key):  
+  - `10,000,000` **queries per day (QPD)**  
+  - `15,000` **queries per minute (QPM)**  
+
+> 💡 *These quotas are enforced by Google and may change over time. Check the [official documentation](https://developers.google.com/webmaster-tools/limits) for the latest limits.*
 
 **Q:** Can I export CSV instead?  
 **A:** Replace the final export with:
@@ -226,3 +236,9 @@ python url_inspect_export.py
 
 **Output:**  
 `export.xlsx` with one row per URL and inspection fields listed above.
+
+
+## References
+
+- [Google Search Console API documentation](https://developers.google.com/webmaster-tools/v1/)
+- [UrlInspectionResult schema reference](https://developers.google.com/webmaster-tools/v1/urlInspection.index/UrlInspectionResult)

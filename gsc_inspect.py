@@ -2,6 +2,7 @@ import os, json, time, random, threading
 from pathlib import Path
 import pandas as pd
 import requests
+import matplotlib.pyplot as plt
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -20,10 +21,11 @@ console = Console()
 
 # ========= CONFIG =========
 URLS_XLSX = Path('urls.xlsx')     # <— relative path (safer)
-CLIENT_SECRET = "client_secret.json"
+CLIENT_SECRET = "/client_secret.json"
 TOKEN_JSON = 'token.json'
 GSC_SITE_URL = 'https://www.figma.com/'   # must match a verified property in GSC
 EXPORT_XLSX = 'export.xlsx'
+COVERAGE_PIE_PNG = 'coverage_state_pie.png'
 SCOPES = ['https://www.googleapis.com/auth/webmasters.readonly']
 REQUEST_TIMEOUT_S = 60
 WORKERS = 12                       # start moderate; raise if you don't see 429s
@@ -168,6 +170,48 @@ def worker(u, site_url, creds, token_holder):
     return row
 
 
+# ---------- plotting ----------
+def plot_coverage_state_pie(df: pd.DataFrame, out_path: str = COVERAGE_PIE_PNG):
+    if 'coverageState' not in df.columns or df.empty:
+        console.print("[yellow]No coverageState data available to plot.[/]")
+        return
+
+    counts = df['coverageState'].fillna('No Data').value_counts()
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+    colors = plt.cm.tab20.colors
+
+    def autopct_with_count(pct, all_vals=counts.values):
+        total = sum(all_vals)
+        count = int(round(pct * total / 100.0))
+        return f"{pct:.1f}%\n({count})"
+
+    ax.pie(
+        counts.values,
+        labels=counts.index,
+        autopct=autopct_with_count,
+        startangle=90,
+        colors=colors[:len(counts)],
+        textprops={'fontsize': 9}
+    )
+    ax.set_title(f"URL Coverage State Distribution (n={len(df)})", fontsize=13, fontweight='bold')
+    plt.tight_layout()
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+    # Print a quick text summary too
+    table = Table(title="Coverage State Breakdown", expand=False)
+    table.add_column("coverageState")
+    table.add_column("Count", justify="right")
+    table.add_column("% of Total", justify="right")
+    total = len(df)
+    for state, count in counts.items():
+        pct = (count / total * 100) if total else 0
+        table.add_row(str(state), str(count), f"{pct:.1f}%")
+    console.print(table)
+    console.print(f"[dim]Pie chart saved to {Path(out_path).resolve()}[/]")
+
+
 # ---------- main ----------
 def main():
     console.rule("[bold magenta]Google Search Console Index Checker")
@@ -308,6 +352,9 @@ def main():
     )
 
     console.print(f"[dim]Exported to {Path(EXPORT_XLSX).resolve()}[/]")
+
+    # 7) Plot coverageState distribution
+    plot_coverage_state_pie(df)
 
 
 if __name__ == "__main__":
